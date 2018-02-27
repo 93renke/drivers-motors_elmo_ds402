@@ -9,7 +9,9 @@ using namespace motors_elmo_ds402;
 
 int usage()
 {
-    cout << "motors_elmo_ds402_ctl CAN_DEVICE CAN_ID COMMAND" << std::endl;
+    cout << "motors_elmo_ds402_ctl CAN_DEVICE CAN_ID COMMAND\n";
+    cout << "  get-state # displays the drive's internal state\n";
+    cout << endl;
     return 1;
 }
 
