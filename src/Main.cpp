@@ -67,8 +67,7 @@ int main(int argc, char** argv)
         sendAndWait<Heartbeat>(*device,
             controller.queryNodeStateTransition(canopen_master::NODE_RESET),
             controller, base::Time::fromMilliseconds(5000));
-        auto nodeState = controller.getNodeState();
-        std::cout << "Node state: " << nodeState << std::endl;
+        controller.getNodeState();
     }
     else if (cmd == "get-state")
     {
