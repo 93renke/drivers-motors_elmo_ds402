@@ -21,6 +21,12 @@ namespace motors_elmo_ds402 {
     public:
         Controller(uint8_t nodeId);
 
+        /** Query the canopen node state */
+        canbus::Message queryNodeState() const;
+
+        /** Return the last known node state */
+        canopen_master::NODE_STATE getNodeState() const;
+
         /**
          * Message to query the current status word
          */

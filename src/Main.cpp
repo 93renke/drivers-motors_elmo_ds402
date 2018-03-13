@@ -32,6 +32,20 @@ const char* stateToString(StatusWord::State state)
     }
 }
 
+template<typename ExpectedUpdate>
+static void sendAndWait(canbus::Driver& device, canbus::Message const& query,
+    motors_elmo_ds402::Controller& controller)
+{
+    device.write(query);
+    while(true)
+    {
+        canbus::Message msg = device.read();
+        if (controller.process(msg).isUpdated<ExpectedUpdate>()) {
+            return;
+        }
+    }
+}
+
 int main(int argc, char** argv)
 {
     if (argc <= 4) {
@@ -43,21 +57,17 @@ int main(int argc, char** argv)
     std::string cmd(argv[3]);
 
     unique_ptr<canbus::Driver> device(canbus::openCanDevice(can_device));
-    Controller drive_controller(node_id);
+    Controller controller(node_id);
 
+    // Get the NMT state
     if (cmd == "get-state")
     {
-        canbus::Message queryMsg = drive_controller.queryStatusWord();
-        device->write(queryMsg);
-        while(true)
-        {
-            canbus::Message msg = device->read();
-            if (drive_controller.process(msg).isUpdated<StatusWord>()) {
-                break;
-            }
-        }
+        sendAndWait<Heartbeat>(*device, controller.queryNodeState(), controller);
+        auto nodeState = controller.getNodeState();
+        std::cout << "Node state: " << nodeState << std::endl;
 
-        StatusWord status = drive_controller.getStatusWord();
+        sendAndWait<StatusWord>(*device, controller.queryStatusWord(), controller);
+        StatusWord status = controller.getStatusWord();
         std::cout << stateToString(status.state) << std::endl;
     }
     return 0;

@@ -6,6 +6,12 @@
 
 namespace motors_elmo_ds402
 {
+    /** Representation of the heartbeat (NMT state)
+     */
+    struct Heartbeat
+    {
+        static const uint64_t UPDATE_ID = 0x00000001;
+    };
     /** Representation of the control word
      * 
      * The control word changes the drive's operational state
@@ -59,7 +65,7 @@ namespace motors_elmo_ds402
         static const int OBJECT_ID = 0x6041;
         static const int OBJECT_SUB_ID = 0x00;
         typedef uint16_t OBJECT_TYPE;
-        static const int UPDATE_ID = 0x0001;
+        static const uint64_t UPDATE_ID = 0x00000002;
 
         State state;
         bool voltage;

@@ -8,6 +8,16 @@ Controller::Controller(uint8_t nodeId)
 {
 }
 
+canbus::Message Controller::queryNodeState() const
+{
+    return mCanOpen.queryState();
+}
+
+canopen_master::NODE_STATE Controller::getNodeState() const
+{
+    return mCanOpen.getState();
+}
+
 canbus::Message Controller::queryStatusWord() const
 {
     return mCanOpen.upload(StatusWord::OBJECT_ID, 0);
@@ -17,6 +27,10 @@ Update Controller::process(canbus::Message const& msg)
 {
     uint64_t update = 0;
     auto canUpdate = mCanOpen.process(msg);
+    if (canUpdate.mode == canopen_master::StateMachine::PROCESSED_HEARTBEAT)
+    {
+        update |= Heartbeat::UPDATE_ID;
+    }
     for (auto it = canUpdate.begin(); it != canUpdate.end(); ++it)
     {
         switch(it->first)
