@@ -41,7 +41,7 @@ StatusWord::State parseState(uint8_t byte)
     switch(byte & 0x4F)
     {
         case 0x00: return StatusWord::NOT_READY_TO_SWITCH_ON;
-        case 0x40: return StatusWord::READY_TO_SWITCH_ON;
+        case 0x40: return StatusWord::SWITCH_ON_DISABLED;
         case 0x0F: return StatusWord::FAULT_REACTION_ACTIVE;
         case 0x08: return StatusWord::FAULT;
     }
