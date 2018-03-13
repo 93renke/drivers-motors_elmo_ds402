@@ -60,8 +60,14 @@ int main(int argc, char** argv)
     unique_ptr<canbus::Driver> device(canbus::openCanDevice(can_device, can_device_type));
     Controller controller(node_id);
 
-    // Get the NMT state
-    if (cmd == "get-state")
+    if (cmd == "reset")
+    {
+        sendAndWait<Heartbeat>(*device,
+            controller.queryNodeStateTransition(canopen_master::NODE_RESET), controller);
+        auto nodeState = controller.getNodeState();
+        std::cout << "Node state: " << nodeState << std::endl;
+    }
+    else if (cmd == "get-state")
     {
         sendAndWait<Heartbeat>(*device, controller.queryNodeState(), controller);
         auto nodeState = controller.getNodeState();

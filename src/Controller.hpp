@@ -25,6 +25,10 @@ namespace motors_elmo_ds402 {
         canbus::Message queryNodeState() const;
 
         /** Return the last known node state */
+        canbus::Message queryNodeStateTransition(
+            canopen_master::NODE_STATE_TRANSITION transition) const;
+
+        /** Return the last known node state */
         canopen_master::NODE_STATE getNodeState() const;
 
         /**

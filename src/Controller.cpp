@@ -13,6 +13,12 @@ canbus::Message Controller::queryNodeState() const
     return mCanOpen.queryState();
 }
 
+canbus::Message Controller::queryNodeStateTransition(
+            canopen_master::NODE_STATE_TRANSITION transition) const
+{
+    return mCanOpen.queryStateTransition(transition);
+}
+
 canopen_master::NODE_STATE Controller::getNodeState() const
 {
     return mCanOpen.getState();
