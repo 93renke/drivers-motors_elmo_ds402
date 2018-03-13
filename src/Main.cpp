@@ -34,9 +34,11 @@ const char* stateToString(StatusWord::State state)
 
 template<typename ExpectedUpdate>
 static void sendAndWait(canbus::Driver& device, canbus::Message const& query,
-    motors_elmo_ds402::Controller& controller)
+    motors_elmo_ds402::Controller& controller,
+    base::Time timeout = base::Time::fromMilliseconds(100))
 {
     device.write(query);
+    device.setReadTimeout(timeout.toMilliseconds());
     while(true)
     {
         canbus::Message msg = device.read();
@@ -63,7 +65,8 @@ int main(int argc, char** argv)
     if (cmd == "reset")
     {
         sendAndWait<Heartbeat>(*device,
-            controller.queryNodeStateTransition(canopen_master::NODE_RESET), controller);
+            controller.queryNodeStateTransition(canopen_master::NODE_RESET),
+            controller, base::Time::fromMilliseconds(5000));
         auto nodeState = controller.getNodeState();
         std::cout << "Node state: " << nodeState << std::endl;
     }
