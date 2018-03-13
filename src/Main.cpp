@@ -46,9 +46,9 @@ ControlWord::Transition transitionFromString(std::string const& string)
     throw std::invalid_argument("unexpected state transition " + string);
 }
 
-template<typename ExpectedUpdate>
 static void sendAndWait(canbus::Driver& device, canbus::Message const& query,
     motors_elmo_ds402::Controller& controller,
+    uint64_t updateId,
     base::Time timeout = base::Time::fromMilliseconds(100))
 {
     device.write(query);
@@ -56,7 +56,7 @@ static void sendAndWait(canbus::Driver& device, canbus::Message const& query,
     while(true)
     {
         canbus::Message msg = device.read();
-        if (controller.process(msg).isUpdated<ExpectedUpdate>()) {
+        if (controller.process(msg).isUpdated(updateId)) {
             return;
         }
     }
@@ -81,9 +81,9 @@ int main(int argc, char** argv)
         if (argc != 5)
             return usage();
 
-        sendAndWait<Heartbeat>(*device,
+        sendAndWait(*device,
             controller.queryNodeStateTransition(canopen_master::NODE_RESET),
-            controller, base::Time::fromMilliseconds(5000));
+            controller, UPDATE_HEARTBEAT, base::Time::fromMilliseconds(5000));
         controller.getNodeState();
     }
     else if (cmd == "get-state")
@@ -91,13 +91,26 @@ int main(int argc, char** argv)
         if (argc != 5)
             return usage();
 
-        sendAndWait<StatusWord>(*device, controller.queryStatusWord(), controller);
+        sendAndWait(*device, controller.queryStatusWord(), controller,
+            UPDATE_STATUS_WORD);
         StatusWord status = controller.getStatusWord();
         cout << stateToString(status.state) << "\n"
             << "  voltageEnabled=" << status.voltageEnabled << "\n"
             << "  warning=" << status.warning << "\n"
             << "  targetReached=" << status.targetReached << "\n"
             << "  internalLimitActive=" << status.internalLimitActive << std::endl;
+
+        auto factorsQuery = controller.queryFactors();
+        for (auto const& msg : factorsQuery)
+            sendAndWait(*device, msg, controller, UPDATE_FACTORS);
+        Factors factors = controller.getFactors();
+        cout << "Scale factors:\n"
+            << "  positionEncoderResolution=" << factors.positionEncoderResolution << "\n"
+            << "  velocityEncoderResolution=" << factors.velocityEncoderResolution << "\n"
+            << "  gearRatio=" << factors.gearRatio << "\n"
+            << "  feedConstant=" << factors.feedConstant << "\n"
+            << "  velocityFactor=" << factors.velocityFactor << "\n"
+            << "  accelerationFactor=" << factors.accelerationFactor << endl;
     }
     else if (cmd == "set-state")
     {

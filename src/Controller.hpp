@@ -4,6 +4,7 @@
 #include <canopen_master/StateMachine.hpp>
 #include <motors_elmo_ds402/Objects.hpp>
 #include <motors_elmo_ds402/Update.hpp>
+#include <motors_elmo_ds402/Factors.hpp>
 
 namespace motors_elmo_ds402 {
     struct HasPendingQuery : public std::runtime_error {};
@@ -41,8 +42,16 @@ namespace motors_elmo_ds402 {
          */
         StatusWord getStatusWord() const;
 
-        /** U
+        /** Return the set of SDO upload queries that allow
+         * to update the factor objects
          */
+        std::vector<canbus::Message> queryFactors();
+
+        /** 
+         * Reads the factor objects from the object dictionary and return them
+         */
+        Factors getFactors() const;
+
         template<typename T>
         canbus::Message send(T const& object)
         {

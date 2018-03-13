@@ -16,7 +16,12 @@ namespace motors_elmo_ds402
         template<typename T>
         bool isUpdated() const
         {
-            return (updated_objects & T::UPDATE_ID);
+            return isUpdated(T::UPDATE_ID);
+        }
+
+        bool isUpdated(uint64_t updateId)
+        {
+            return (updated_objects & updateId);
         }
     };
 }
