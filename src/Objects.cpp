@@ -60,9 +60,10 @@ StatusWord::State parseState(uint8_t byte)
 StatusWord StatusWord::parse(uint16_t word)
 {
     State state = parseState(word & 0x6F);
-    bool voltage = (word & 0x10);
+    bool voltageEnabled = (word & 0x10);
     bool warning = (word & 0x40);
     bool targetReached = word & 0x400;
     bool internalLimitActive = word & 0x800;
-    return StatusWord { state, voltage, warning, targetReached, internalLimitActive };
+    return StatusWord { state, voltageEnabled, warning,
+        targetReached, internalLimitActive };
 }

@@ -73,7 +73,11 @@ int main(int argc, char** argv)
     {
         sendAndWait<StatusWord>(*device, controller.queryStatusWord(), controller);
         StatusWord status = controller.getStatusWord();
-        std::cout << stateToString(status.state) << std::endl;
+        cout << stateToString(status.state) << "\n"
+            << "  voltageEnabled=" << status.voltageEnabled << "\n"
+            << "  warning=" << status.warning << "\n"
+            << "  targetReached=" << status.targetReached << "\n"
+            << "  internalLimitActive=" << status.internalLimitActive << std::endl;
     }
     return 0;
 }

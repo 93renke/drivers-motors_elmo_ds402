@@ -68,7 +68,7 @@ namespace motors_elmo_ds402
         static const uint64_t UPDATE_ID = 0x00000002;
 
         State state;
-        bool voltage;
+        bool voltageEnabled;
         bool warning;
         bool targetReached;
         bool internalLimitActive;
