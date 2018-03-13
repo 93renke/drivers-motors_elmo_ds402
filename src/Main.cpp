@@ -9,7 +9,7 @@ using namespace motors_elmo_ds402;
 
 int usage()
 {
-    cout << "motors_elmo_ds402_ctl CAN_DEVICE CAN_ID COMMAND\n";
+    cout << "motors_elmo_ds402_ctl CAN_DEVICE CAN_DEVICE_TYPE CAN_ID COMMAND\n";
     cout << "  get-state # displays the drive's internal state\n";
     cout << endl;
     return 1;
@@ -48,15 +48,16 @@ static void sendAndWait(canbus::Driver& device, canbus::Message const& query,
 
 int main(int argc, char** argv)
 {
-    if (argc <= 4) {
+    if (argc < 5) {
         return usage();
     }
 
     std::string can_device(argv[1]);
-    int8_t node_id(stoi(argv[2]));
-    std::string cmd(argv[3]);
+    std::string can_device_type(argv[2]);
+    int8_t node_id(stoi(argv[3]));
+    std::string cmd(argv[4]);
 
-    unique_ptr<canbus::Driver> device(canbus::openCanDevice(can_device));
+    unique_ptr<canbus::Driver> device(canbus::openCanDevice(can_device, can_device_type));
     Controller controller(node_id);
 
     // Get the NMT state
