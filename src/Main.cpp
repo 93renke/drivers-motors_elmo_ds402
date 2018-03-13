@@ -71,10 +71,6 @@ int main(int argc, char** argv)
     }
     else if (cmd == "get-state")
     {
-        sendAndWait<Heartbeat>(*device, controller.queryNodeState(), controller);
-        auto nodeState = controller.getNodeState();
-        std::cout << "Node state: " << nodeState << std::endl;
-
         sendAndWait<StatusWord>(*device, controller.queryStatusWord(), controller);
         StatusWord status = controller.getStatusWord();
         std::cout << stateToString(status.state) << std::endl;
