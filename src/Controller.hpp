@@ -41,6 +41,14 @@ namespace motors_elmo_ds402 {
          */
         StatusWord getStatusWord() const;
 
+        /** U
+         */
+        template<typename T>
+        canbus::Message send(T const& object)
+        {
+            return mCanOpen.download(T::OBJECT_ID, T::OBJECT_SUB_ID, object.encode());
+        }
+
         /** Process a can message and returns what got updated
          */
         Update process(canbus::Message const& msg);

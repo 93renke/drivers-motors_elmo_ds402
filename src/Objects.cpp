@@ -2,7 +2,7 @@
 
 using namespace motors_elmo_ds402;
 
-uint16_t ControlWord::encode()
+uint16_t ControlWord::encode() const
 {
     uint16_t word = 0;
     switch(transition)

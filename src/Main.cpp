@@ -10,7 +10,9 @@ using namespace motors_elmo_ds402;
 int usage()
 {
     cout << "motors_elmo_ds402_ctl CAN_DEVICE CAN_DEVICE_TYPE CAN_ID COMMAND\n";
+    cout << "  reset     # resets the drive";
     cout << "  get-state # displays the drive's internal state\n";
+    cout << "  set-state NEW_STATE # changes the drive's internal state\n";
     cout << endl;
     return 1;
 }
@@ -30,6 +32,18 @@ const char* stateToString(StatusWord::State state)
         default:
             throw std::invalid_argument("unknown state");
     }
+}
+
+ControlWord::Transition transitionFromString(std::string const& string)
+{
+    if (string == "SHUTDOWN") return ControlWord::SHUTDOWN;
+    if (string == "SWITCH_ON") return ControlWord::SWITCH_ON;
+    if (string == "ENABLE_OPERATION") return ControlWord::ENABLE_OPERATION;
+    if (string == "DISABLE_VOLTAGE") return ControlWord::DISABLE_VOLTAGE;
+    if (string == "QUICK_STOP") return ControlWord::QUICK_STOP;
+    if (string == "DISABLE_OPERATION") return ControlWord::DISABLE_OPERATION;
+    if (string == "FAULT_RESET") return ControlWord::FAULT_RESET;
+    throw std::invalid_argument("unexpected state transition " + string);
 }
 
 template<typename ExpectedUpdate>
@@ -64,6 +78,9 @@ int main(int argc, char** argv)
 
     if (cmd == "reset")
     {
+        if (argc != 5)
+            return usage();
+
         sendAndWait<Heartbeat>(*device,
             controller.queryNodeStateTransition(canopen_master::NODE_RESET),
             controller, base::Time::fromMilliseconds(5000));
@@ -71,6 +88,9 @@ int main(int argc, char** argv)
     }
     else if (cmd == "get-state")
     {
+        if (argc != 5)
+            return usage();
+
         sendAndWait<StatusWord>(*device, controller.queryStatusWord(), controller);
         StatusWord status = controller.getStatusWord();
         cout << stateToString(status.state) << "\n"
@@ -78,6 +98,14 @@ int main(int argc, char** argv)
             << "  warning=" << status.warning << "\n"
             << "  targetReached=" << status.targetReached << "\n"
             << "  internalLimitActive=" << status.internalLimitActive << std::endl;
+    }
+    else if (cmd == "set-state")
+    {
+        if (argc != 6)
+            return usage();
+
+        auto transition = transitionFromString(argv[5]);
+        device->write(controller.send(ControlWord(transition, true)));
     }
     return 0;
 }

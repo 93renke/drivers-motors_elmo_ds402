@@ -33,10 +33,14 @@ namespace motors_elmo_ds402
         static const int OBJECT_SUB_ID = 0x00;
         typedef uint16_t OBJECT_TYPE;
 
+        ControlWord(Transition transition, bool enable_halt)
+            : transition(transition)
+            , enable_halt(enable_halt) {}
+
         Transition transition;
         bool enable_halt;
 
-        uint16_t encode();
+        uint16_t encode() const;
     };
 
     /** Representation of the status word
