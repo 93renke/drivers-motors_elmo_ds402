@@ -3,6 +3,7 @@
 #include <memory>
 #include <motors_elmo_ds402/Controller.hpp>
 #include <string>
+#include <iomanip>
 
 using namespace std;
 using namespace motors_elmo_ds402;
@@ -46,7 +47,32 @@ ControlWord::Transition transitionFromString(std::string const& string)
     throw std::invalid_argument("unexpected state transition " + string);
 }
 
-static void sendAndWait(canbus::Driver& device, canbus::Message const& query,
+static void writeObject(canbus::Driver& device, canbus::Message const& query,
+    motors_elmo_ds402::Controller& controller,
+    base::Time timeout = base::Time::fromMilliseconds(100))
+{
+
+    device.write(query);
+    device.setReadTimeout(timeout.toMilliseconds());
+    while(true)
+    {
+        canbus::Message msg = device.read();
+        if (controller.process(msg).isAck()) {
+            return;
+        }
+    }
+}
+
+static void writeObjects(canbus::Driver& device, vector<canbus::Message> const& query,
+    motors_elmo_ds402::Controller& controller,
+    base::Time timeout = base::Time::fromMilliseconds(100))
+{
+    for(auto const& msg : query) {
+        writeObject(device, msg, controller, timeout);
+    }
+}
+
+static void queryObject(canbus::Driver& device, canbus::Message const& query,
     motors_elmo_ds402::Controller& controller,
     uint64_t updateId,
     base::Time timeout = base::Time::fromMilliseconds(100))
@@ -62,13 +88,13 @@ static void sendAndWait(canbus::Driver& device, canbus::Message const& query,
     }
 }
 
-static void sendAndWait(canbus::Driver& device, std::vector<canbus::Message> const& query,
+static void queryObjects(canbus::Driver& device, std::vector<canbus::Message> const& query,
     motors_elmo_ds402::Controller& controller,
     uint64_t updateId,
     base::Time timeout = base::Time::fromMilliseconds(100))
 {
     for(auto const& msg : query) {
-        sendAndWait(device, msg, controller, updateId, timeout);
+        queryObject(device, msg, controller, updateId, timeout);
     }
 }
 
@@ -91,7 +117,7 @@ int main(int argc, char** argv)
         if (argc != 5)
             return usage();
 
-        sendAndWait(*device,
+        queryObject(*device,
             controller.queryNodeStateTransition(canopen_master::NODE_RESET),
             controller, UPDATE_HEARTBEAT, base::Time::fromMilliseconds(5000));
         controller.getNodeState();
@@ -101,7 +127,7 @@ int main(int argc, char** argv)
         if (argc != 5)
             return usage();
 
-        sendAndWait(*device, controller.queryStatusWord(), controller,
+        queryObject(*device, controller.queryStatusWord(), controller,
             UPDATE_STATUS_WORD);
         StatusWord status = controller.getStatusWord();
         cout << stateToString(status.state) << "\n"
@@ -110,9 +136,9 @@ int main(int argc, char** argv)
             << "  targetReached       " << status.targetReached << "\n"
             << "  internalLimitActive " << status.internalLimitActive << std::endl;
 
-        sendAndWait(*device, controller.queryFactors(),
+        queryObjects(*device, controller.queryFactors(),
             controller, UPDATE_FACTORS);
-        sendAndWait(*device, controller.queryJointState(),
+        queryObjects(*device, controller.queryJointState(),
             controller, UPDATE_JOINT_STATE);
         auto jointState = controller.getJointState();
         cout << "Current joint state:\n" <<
@@ -123,7 +149,7 @@ int main(int argc, char** argv)
     }
     else if (cmd == "get-config")
     {
-        sendAndWait(*device, controller.queryFactors(),
+        queryObjects(*device, controller.queryFactors(),
             controller, UPDATE_FACTORS);
         Factors factors = controller.getFactors();
         cout << "Scale factors:\n"
@@ -136,7 +162,7 @@ int main(int argc, char** argv)
             << "  ratedTorque  " << factors.ratedTorque << "\n"
             << "  ratedCurrent " << factors.ratedCurrent << endl;
 
-        sendAndWait(*device, controller.queryJointLimits(),
+        queryObjects(*device, controller.queryJointLimits(),
             controller, UPDATE_JOINT_LIMITS);
         auto jointLimits = controller.getJointLimits();
         cout << "Current joint limits:\n" <<
@@ -152,7 +178,32 @@ int main(int argc, char** argv)
             return usage();
 
         auto transition = transitionFromString(argv[5]);
-        device->write(controller.send(ControlWord(transition, true)));
+        writeObject(*device, controller.send(ControlWord(transition, true)), controller);
+    }
+    else if (cmd == "monitor-joint-state")
+    {
+        queryObjects(*device, controller.queryFactors(),
+            controller, UPDATE_FACTORS);
+        writeObjects(*device,
+            controller.queryPeriodicJointStateUpdate(1, base::Time::fromMilliseconds(100)),
+            controller);
+
+        cout << setw(10) << "Position" << " "
+            << setw(10) << "Speed" << " "
+            << setw(10) << "Effort" << " " 
+            << setw(10) << "Current" << endl;
+        while(true)
+        {
+            canbus::Message msg = device->read();
+            if (controller.process(msg).isUpdated(UPDATE_JOINT_STATE))
+            {
+                base::JointState jointState = controller.getJointState();
+                cout << setw(10) << jointState.position << " "
+                    << setw(10) << jointState.speed << " "
+                    << setw(10) << jointState.effort << " " 
+                    << setw(10) << jointState.raw << endl;
+            }
+        }
     }
     return 0;
 }

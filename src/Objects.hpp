@@ -8,11 +8,12 @@ namespace motors_elmo_ds402
 {
     enum UPDATES
     {
-        UPDATE_HEARTBEAT    = 0x00000001,
-        UPDATE_STATUS_WORD  = 0x00000002,
-        UPDATE_FACTORS      = 0x00000004,
-        UPDATE_JOINT_STATE  = 0x00000008,
-        UPDATE_JOINT_LIMITS = 0x00000010
+        UPDATE_HEARTBEAT      = 0x00000001,
+        UPDATE_PDO_CONFIG     = 0x00000002,
+        UPDATE_STATUS_WORD    = 0x00000004,
+        UPDATE_FACTORS        = 0x00000008,
+        UPDATE_JOINT_STATE    = 0x00000010,
+        UPDATE_JOINT_LIMITS   = 0x00000020
     };
 
     template<typename T, typename Raw> T parse(Raw value);

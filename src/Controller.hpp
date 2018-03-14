@@ -95,6 +95,12 @@ namespace motors_elmo_ds402 {
          */
         std::vector<canbus::Message> setJointLimits(base::JointLimitRange const& limits);
 
+        /**
+         * Configure the controller to periodically send joint state information
+         */
+        std::vector<canbus::Message> queryPeriodicJointStateUpdate(
+            int pdoIndex, base::Time const& period);
+
         template<typename T>
         canbus::Message send(T const& object)
         {

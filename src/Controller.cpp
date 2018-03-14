@@ -104,7 +104,7 @@ Factors Controller::computeFactors() const
         break;
 
 #define SDO_UPDATE_CASE(object) \
-    case (static_cast<uint32_t>(object::OBJECT_ID) << 16 | object::OBJECT_SUB_ID): \
+    case (static_cast<uint32_t>(object::OBJECT_ID) << 8 | object::OBJECT_SUB_ID): \
         update |= object::UPDATE_ID; \
         break;
 
@@ -115,12 +115,20 @@ Update Controller::process(canbus::Message const& msg)
     switch(canUpdate.mode)
     {
         MODE_UPDATE_CASE(PROCESSED_HEARTBEAT, Heartbeat);
+        case canopen_master::StateMachine::PROCESSED_SDO_INITIATE_DOWNLOAD:
+        {
+            // Ack of a upload request
+            auto object = canUpdate.updated[0];
+            return Update::Ack(object.first, object.second);
+        }
+
         default: ; // we just ignore the rest, we really don't care
     };
 
     for (auto it = canUpdate.begin(); it != canUpdate.end(); ++it)
     {
-        uint32_t fullId = static_cast<uint32_t>(it->first) << 16 | it->second;
+        uint32_t fullId = static_cast<uint32_t>(it->first) << 8 | it->second;
+
         switch(fullId)
         {
             SDO_UPDATE_CASE(StatusWord);
@@ -162,7 +170,7 @@ Update Controller::process(canbus::Message const& msg)
         catch(canopen_master::ObjectNotRead) {}
     }
 
-    return Update(update);
+    return Update::UpdatedObjects(update);
 }
 
 StatusWord Controller::getStatusWord() const
@@ -290,4 +298,43 @@ base::JointLimitRange Controller::getJointLimits() const
     range.min = min;
     range.max = max;
     return range;
+}
+
+struct PDOMapping : canopen_master::PDOMapping
+{
+    template<typename Object>
+    void add()
+    {
+        canopen_master::PDOMapping::add(
+            Object::OBJECT_ID, Object::OBJECT_SUB_ID, sizeof(typename Object::OBJECT_TYPE));
+    }
+};
+
+vector<canbus::Message> Controller::queryPeriodicJointStateUpdate(
+    int pdoIndex, base::Time const& period)
+{
+    canopen_master::PDOCommunicationParameters parameters;
+    parameters.transmission_mode = canopen_master::PDO_ASYNCHRONOUS_RTR_ONLY;
+    parameters.timer_period = period;
+
+    PDOMapping mapping0;
+    mapping0.add<PositionActualInternalValue>();
+    mapping0.add<VelocityActualValue>();
+    auto pdo0_parameters = mCanOpen.configurePDOParameters(true, pdoIndex, parameters);
+    auto pdo0_mappings = mCanOpen.configurePDOMapping(true, pdoIndex, mapping0);
+
+    PDOMapping mapping1;
+    mapping1.add<CurrentActualValue>();
+    auto pdo1_parameters = mCanOpen.configurePDOParameters(true, pdoIndex + 1, parameters);
+    auto pdo1_mappings = mCanOpen.configurePDOMapping(true, pdoIndex + 1, mapping1);
+
+    mCanOpen.declarePDOMapping(pdoIndex, mapping0);
+    mCanOpen.declarePDOMapping(pdoIndex + 1, mapping1);
+
+    vector<canbus::Message> messages;
+    messages.insert(messages.end(), pdo0_parameters.begin(), pdo0_parameters.end());
+    messages.insert(messages.end(), pdo0_mappings.begin(), pdo0_mappings.end());
+    messages.insert(messages.end(), pdo1_parameters.begin(), pdo1_parameters.end());
+    messages.insert(messages.end(), pdo1_mappings.begin(), pdo1_mappings.end());
+    return messages;
 }
