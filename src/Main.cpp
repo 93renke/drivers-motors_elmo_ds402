@@ -62,6 +62,16 @@ static void sendAndWait(canbus::Driver& device, canbus::Message const& query,
     }
 }
 
+static void sendAndWait(canbus::Driver& device, std::vector<canbus::Message> const& query,
+    motors_elmo_ds402::Controller& controller,
+    uint64_t updateId,
+    base::Time timeout = base::Time::fromMilliseconds(100))
+{
+    for(auto const& msg : query) {
+        sendAndWait(device, msg, controller, updateId, timeout);
+    }
+}
+
 int main(int argc, char** argv)
 {
     if (argc < 5) {
@@ -100,17 +110,28 @@ int main(int argc, char** argv)
             << "  targetReached=" << status.targetReached << "\n"
             << "  internalLimitActive=" << status.internalLimitActive << std::endl;
 
-        auto factorsQuery = controller.queryFactors();
-        for (auto const& msg : factorsQuery)
-            sendAndWait(*device, msg, controller, UPDATE_FACTORS);
+        sendAndWait(*device, controller.queryFactors(),
+            controller, UPDATE_FACTORS);
+        sendAndWait(*device, controller.queryJointState(),
+            controller, UPDATE_JOINT_STATE);
+        auto jointState = controller.getJointState();
+        cout << "Current joint state:\n" <<
+            "  position=" << jointState.position << "\n" <<
+            "  speed=" << jointState.speed << "\n" <<
+            "  effort=" << jointState.effort << "\n" <<
+            "  current=" << jointState.raw << endl;
+    }
+    else if (cmd == "get-config")
+    {
+        sendAndWait(*device, controller.queryFactors(),
+            controller, UPDATE_FACTORS);
         Factors factors = controller.getFactors();
         cout << "Scale factors:\n"
             << "  positionEncoderResolution=" << factors.positionEncoderResolution << "\n"
             << "  velocityEncoderResolution=" << factors.velocityEncoderResolution << "\n"
             << "  gearRatio=" << factors.gearRatio << "\n"
             << "  feedConstant=" << factors.feedConstant << "\n"
-            << "  velocityFactor=" << factors.velocityFactor << "\n"
-            << "  accelerationFactor=" << factors.accelerationFactor << endl;
+            << "  velocityFactor=" << factors.velocityFactor << endl;
     }
     else if (cmd == "set-state")
     {

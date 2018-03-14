@@ -1,11 +1,22 @@
 #include <motors_elmo_ds402/Controller.hpp>
 
+using namespace std;
 using namespace motors_elmo_ds402;
-
 
 Controller::Controller(uint8_t nodeId)
     : mCanOpen(nodeId)
+    , mRatedTorque(base::unknown<double>())
 {
+}
+
+void Controller::setRatedTorque(double ratedTorque)
+{
+    mRatedTorque = ratedTorque;
+}
+
+double Controller::getRatedTorque() const
+{
+    return mRatedTorque;
 }
 
 canbus::Message Controller::queryNodeState() const
@@ -43,48 +54,50 @@ std::vector<canbus::Message> Controller::queryFactors()
         queryObject<FeedConstantDen>(),
         queryObject<VelocityFactorNum>(),
         queryObject<VelocityFactorDen>(),
-        queryObject<AccelerationFactorNum>(),
-        queryObject<AccelerationFactorDen>()
+        queryObject<MotorRatedCurrent>()
     };
 }
 
 Factors Controller::getFactors() const
 {
-    double positionEncoderResolution = getRational<
+    return mFactors;
+}
+
+Factors Controller::computeFactors() const
+{
+    Factors factors;
+
+    factors.positionEncoderResolution = getRational<
         PositionEncoderResolutionNum,
         PositionEncoderResolutionDen>();
 
-    double velocityEncoderResolution = getRational<
+    factors.velocityEncoderResolution = getRational<
         VelocityEncoderResolutionNum,
         VelocityEncoderResolutionDen>();
 
-    double gearRatio = getRational<
+    factors.gearRatio = getRational<
         GearRatioNum,
         GearRatioDen>();
 
-    double feedConstant = getRational<
+    factors.feedConstant = getRational<
         FeedConstantNum,
         FeedConstantDen>();
 
-    double velocityFactor = getRational<
+    factors.velocityFactor = getRational<
         VelocityFactorNum,
         VelocityFactorDen>();
 
-    double accelerationFactor = getRational<
-        AccelerationFactorNum,
-        AccelerationFactorDen>();
-
-    return Factors {
-        positionEncoderResolution,
-        velocityEncoderResolution,
-        gearRatio,
-        feedConstant,
-        velocityFactor,
-        accelerationFactor
-    };
+    factors.ratedTorque  = mRatedTorque;
+    factors.ratedCurrent = static_cast<double>(getRaw<MotorRatedCurrent>()) / 1000;
+    return factors;
 }
 
-#define UPDATE_CASE(object) \
+#define MODE_UPDATE_CASE(mode, object) \
+    case canopen_master::StateMachine::mode: \
+        update |= object::UPDATE_ID; \
+        break;
+
+#define SDO_UPDATE_CASE(object) \
     case (static_cast<uint32_t>(object::OBJECT_ID) << 16 | object::OBJECT_SUB_ID): \
         update |= object::UPDATE_ID; \
         break;
@@ -93,31 +106,44 @@ Update Controller::process(canbus::Message const& msg)
 {
     uint64_t update = 0;
     auto canUpdate = mCanOpen.process(msg);
-    if (canUpdate.mode == canopen_master::StateMachine::PROCESSED_HEARTBEAT)
+    switch(canUpdate.mode)
     {
-        update |= Heartbeat::UPDATE_ID;
-    }
+        MODE_UPDATE_CASE(PROCESSED_HEARTBEAT, Heartbeat);
+        default: ; // we just ignore the rest, we really don't care
+    };
+
     for (auto it = canUpdate.begin(); it != canUpdate.end(); ++it)
     {
         uint32_t fullId = static_cast<uint32_t>(it->first) << 16 | it->second;
         switch(fullId)
         {
-            UPDATE_CASE(StatusWord);
+            SDO_UPDATE_CASE(StatusWord);
 
             // UPDATE_FACTORS
-            UPDATE_CASE(PositionEncoderResolutionNum);
-            UPDATE_CASE(PositionEncoderResolutionDen);
-            UPDATE_CASE(VelocityEncoderResolutionNum);
-            UPDATE_CASE(VelocityEncoderResolutionDen);
-            UPDATE_CASE(GearRatioNum);
-            UPDATE_CASE(GearRatioDen);
-            UPDATE_CASE(FeedConstantNum);
-            UPDATE_CASE(FeedConstantDen);
-            UPDATE_CASE(VelocityFactorNum);
-            UPDATE_CASE(VelocityFactorDen);
-            UPDATE_CASE(AccelerationFactorNum);
-            UPDATE_CASE(AccelerationFactorDen);
+            SDO_UPDATE_CASE(PositionEncoderResolutionNum);
+            SDO_UPDATE_CASE(PositionEncoderResolutionDen);
+            SDO_UPDATE_CASE(VelocityEncoderResolutionNum);
+            SDO_UPDATE_CASE(VelocityEncoderResolutionDen);
+            SDO_UPDATE_CASE(GearRatioNum);
+            SDO_UPDATE_CASE(GearRatioDen);
+            SDO_UPDATE_CASE(FeedConstantNum);
+            SDO_UPDATE_CASE(FeedConstantDen);
+            SDO_UPDATE_CASE(VelocityFactorNum);
+            SDO_UPDATE_CASE(VelocityFactorDen);
+            SDO_UPDATE_CASE(MotorRatedCurrent);
+
+            // UPDATE_JOINT_STATE
+            SDO_UPDATE_CASE(PositionActualInternalValue);
+            SDO_UPDATE_CASE(VelocityActualValue);
+            SDO_UPDATE_CASE(CurrentActualValue);
         }
+    }
+
+    if (update & UPDATE_FACTORS) {
+        try {
+            mFactors = computeFactors();
+        }
+        catch(canopen_master::ObjectNotRead) {}
     }
 
     return Update(update);
@@ -154,7 +180,28 @@ canbus::Message Controller::queryObject() const
     return mCanOpen.upload(T::OBJECT_ID, T::OBJECT_SUB_ID);
 }
 
+std::vector<canbus::Message> Controller::queryJointState() const
+{
+    // NOTE: we don't need to query TorqueActualValue. Given how bot this and
+    // CurrentActualValue are encoded, they contain the same value
+    return vector<canbus::Message> {
+        queryObject<PositionActualInternalValue>(),
+        queryObject<VelocityActualValue>(),
+        queryObject<CurrentActualValue>()
+    };
+}
+
 base::JointState Controller::getJointState() const
 {
+    auto position = getRaw<PositionActualInternalValue>();
+    auto velocity = getRaw<VelocityActualValue>();
+    // See comment in queryJointState
+    auto current_and_torque = getRaw<CurrentActualValue>();
 
+    base::JointState state;
+    state.position = mFactors.positionToUser(position);
+    state.speed    = mFactors.velocityToUser(velocity);
+    state.raw      = mFactors.currentToUser(current_and_torque);
+    state.effort   = mFactors.torqueToUser(current_and_torque);
+    return state;
 }

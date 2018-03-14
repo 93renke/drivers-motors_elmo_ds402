@@ -23,6 +23,16 @@ namespace motors_elmo_ds402 {
     public:
         Controller(uint8_t nodeId);
 
+        /** Give the motor rated torque
+         * 
+         * This is necessary to use torque commands and status
+         */
+        void setRatedTorque(double torque);
+
+        /** Returns the motor rated torque
+         */
+        double getRatedTorque() const;
+
         /** Query the canopen node state */
         canbus::Message queryNodeState() const;
 
@@ -49,14 +59,19 @@ namespace motors_elmo_ds402 {
         std::vector<canbus::Message> queryFactors();
 
         /** 
-         * Reads the factor objects from the object dictionary and return them
+         * Returns the conversion factor object between Elmo's internal units
+         * and physical units
+         * 
+         * This is a cached object that is updated every time the corresponding
+         * SDOs are uploaded. All factors can be queried by sending the messages
+         * returned by queryFactors.
          */
         Factors getFactors() const;
 
         /** Return the set of SDO upload queries that allow
          * to update the joint state
          */
-        std::vector<canbus::Message> queryJointState();
+        std::vector<canbus::Message> queryJointState() const;
 
         /** 
          * Reads the factor objects from the object dictionary and return them
@@ -76,6 +91,10 @@ namespace motors_elmo_ds402 {
 
     private:
         StateMachine mCanOpen;
+        double mRatedTorque;
+        Factors mFactors;
+
+        Factors computeFactors() const;
 
         template<typename T>
         canbus::Message queryObject() const;
