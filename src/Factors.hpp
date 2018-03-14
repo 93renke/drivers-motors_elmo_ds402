@@ -13,13 +13,15 @@ namespace motors_elmo_ds402
         double gearRatio                 = base::unknown<double>();
         double feedConstant              = base::unknown<double>();
         double velocityFactor            = base::unknown<double>();
+        double accelerationFactor        = base::unknown<double>();
         double ratedTorque               = base::unknown<double>();
         double ratedCurrent              = base::unknown<double>();
 
-        double positionToUser(std::int32_t encoder) const;
-        double velocityToUser(std::int32_t encoder) const;
-        double torqueToUser(std::int16_t torque) const;
-        double currentToUser(std::int16_t current) const;
+        double positionToUser(long encoder) const;
+        double velocityToUser(long encoder) const;
+        double accelerationToUser(long acc) const;
+        double torqueToUser(long torque) const;
+        double currentToUser(long current) const;
     };
 }
 

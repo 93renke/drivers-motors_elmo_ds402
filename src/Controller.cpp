@@ -48,6 +48,8 @@ std::vector<canbus::Message> Controller::queryFactors()
         queryObject<PositionEncoderResolutionDen>(),
         queryObject<VelocityEncoderResolutionNum>(),
         queryObject<VelocityEncoderResolutionDen>(),
+        queryObject<AccelerationFactorNum>(),
+        queryObject<AccelerationFactorDen>(),
         queryObject<GearRatioNum>(),
         queryObject<GearRatioDen>(),
         queryObject<FeedConstantNum>(),
@@ -74,6 +76,10 @@ Factors Controller::computeFactors() const
     factors.velocityEncoderResolution = getRational<
         VelocityEncoderResolutionNum,
         VelocityEncoderResolutionDen>();
+
+    factors.accelerationFactor = getRational<
+        AccelerationFactorNum,
+        AccelerationFactorDen>();
 
     factors.gearRatio = getRational<
         GearRatioNum,
@@ -124,6 +130,8 @@ Update Controller::process(canbus::Message const& msg)
             SDO_UPDATE_CASE(PositionEncoderResolutionDen);
             SDO_UPDATE_CASE(VelocityEncoderResolutionNum);
             SDO_UPDATE_CASE(VelocityEncoderResolutionDen);
+            SDO_UPDATE_CASE(AccelerationFactorNum);
+            SDO_UPDATE_CASE(AccelerationFactorDen);
             SDO_UPDATE_CASE(GearRatioNum);
             SDO_UPDATE_CASE(GearRatioDen);
             SDO_UPDATE_CASE(FeedConstantNum);
@@ -136,6 +144,14 @@ Update Controller::process(canbus::Message const& msg)
             SDO_UPDATE_CASE(PositionActualInternalValue);
             SDO_UPDATE_CASE(VelocityActualValue);
             SDO_UPDATE_CASE(CurrentActualValue);
+
+            // UPDATE_JOINT_LIMITS
+            SDO_UPDATE_CASE(SoftwarePositionLimitMin);
+            SDO_UPDATE_CASE(SoftwarePositionLimitMax);
+            SDO_UPDATE_CASE(MaxMotorSpeed);
+            SDO_UPDATE_CASE(MaxAcceleration);
+            SDO_UPDATE_CASE(MaxDeceleration);
+            SDO_UPDATE_CASE(MaxCurrent);
         }
     }
 
@@ -204,4 +220,74 @@ base::JointState Controller::getJointState() const
     state.raw      = mFactors.currentToUser(current_and_torque);
     state.effort   = mFactors.torqueToUser(current_and_torque);
     return state;
+}
+
+vector<canbus::Message> Controller::queryJointLimits() const
+{
+    return vector<canbus::Message> {
+        queryObject<SoftwarePositionLimitMin>(),
+        queryObject<SoftwarePositionLimitMax>(),
+        queryObject<MaxMotorSpeed>(),
+        queryObject<MaxAcceleration>(),
+        queryObject<MaxDeceleration>(),
+        queryObject<MaxCurrent>()
+    };
+}
+
+base::JointLimitRange Controller::getJointLimits() const
+{
+    base::JointState min;
+    base::JointState max;
+
+    int32_t rawPositionMin = getRaw<SoftwarePositionLimitMin>();
+    int32_t rawPositionMax = getRaw<SoftwarePositionLimitMax>();
+    if (rawPositionMin == rawPositionMax && rawPositionMin == 0)
+    {
+        min.position = -base::infinity<double>();
+        max.position = base::infinity<double>();
+    }
+    else
+    {
+        min.position = mFactors.positionToUser(rawPositionMin);
+        max.position = mFactors.positionToUser(rawPositionMax);
+    }
+
+    int32_t rawMaxSpeed = getRaw<MaxMotorSpeed>();
+    if (rawMaxSpeed < 0)
+    {
+        min.speed = -base::infinity<double>();
+        max.speed = base::infinity<double>();
+    }
+    else
+    {
+        double speedLimit = mFactors.velocityToUser(rawMaxSpeed);
+        min.speed = -speedLimit;
+        max.speed = speedLimit;
+    }
+
+    int rawMinAcceleration = getRaw<MaxDeceleration>();
+    if (rawMinAcceleration == 2147483647)
+        min.acceleration = -base::infinity<double>();
+    else
+        min.acceleration = -mFactors.accelerationToUser(rawMinAcceleration);
+
+    int rawMaxAcceleration = getRaw<MaxDeceleration>();
+    if (rawMaxAcceleration == 2147483647)
+        max.acceleration = base::infinity<double>();
+    else
+        max.acceleration = mFactors.accelerationToUser(rawMaxAcceleration);
+
+    auto torqueAndCurrentLimit = getRaw<MaxCurrent>();
+    double torqueLimit = mFactors.torqueToUser(torqueAndCurrentLimit);
+    min.effort = -torqueLimit;
+    max.effort = torqueLimit;
+
+    double currentLimit = mFactors.currentToUser(torqueAndCurrentLimit);
+    min.raw = -currentLimit;
+    max.raw = currentLimit;
+
+    base::JointLimitRange range;
+    range.min = min;
+    range.max = max;
+    return range;
 }

@@ -3,25 +3,30 @@
 using namespace std;
 using namespace motors_elmo_ds402;
 
-double Factors::positionToUser(int32_t position) const
+double Factors::positionToUser(long position) const
 {
     return static_cast<double>(position) *
         feedConstant / (positionEncoderResolution * gearRatio);
 }
 
-double Factors::velocityToUser(int32_t velocity) const
+double Factors::velocityToUser(long velocity) const
 {
     return static_cast<double>(velocity) *
         feedConstant / (velocityEncoderResolution * gearRatio) *
         velocityFactor;
 }
 
-double Factors::torqueToUser(int16_t torque) const
+double Factors::accelerationToUser(long acceleration) const
+{
+    return acceleration * accelerationFactor;
+}
+
+double Factors::torqueToUser(long torque) const
 {
     return static_cast<double>(torque) / 1000 * ratedTorque;
 }
 
-double Factors::currentToUser(int16_t current) const
+double Factors::currentToUser(long current) const
 {
     return static_cast<double>(current) / 1000 * ratedCurrent;
 }

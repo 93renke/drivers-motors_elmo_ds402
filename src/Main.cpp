@@ -105,10 +105,10 @@ int main(int argc, char** argv)
             UPDATE_STATUS_WORD);
         StatusWord status = controller.getStatusWord();
         cout << stateToString(status.state) << "\n"
-            << "  voltageEnabled=" << status.voltageEnabled << "\n"
-            << "  warning=" << status.warning << "\n"
-            << "  targetReached=" << status.targetReached << "\n"
-            << "  internalLimitActive=" << status.internalLimitActive << std::endl;
+            << "  voltageEnabled      " << status.voltageEnabled << "\n"
+            << "  warning             " << status.warning << "\n"
+            << "  targetReached       " << status.targetReached << "\n"
+            << "  internalLimitActive " << status.internalLimitActive << std::endl;
 
         sendAndWait(*device, controller.queryFactors(),
             controller, UPDATE_FACTORS);
@@ -116,10 +116,10 @@ int main(int argc, char** argv)
             controller, UPDATE_JOINT_STATE);
         auto jointState = controller.getJointState();
         cout << "Current joint state:\n" <<
-            "  position=" << jointState.position << "\n" <<
-            "  speed=" << jointState.speed << "\n" <<
-            "  effort=" << jointState.effort << "\n" <<
-            "  current=" << jointState.raw << endl;
+            "  position " << jointState.position << "\n" <<
+            "  speed    " << jointState.speed << "\n" <<
+            "  effort   " << jointState.effort << "\n" <<
+            "  current  " << jointState.raw << endl;
     }
     else if (cmd == "get-config")
     {
@@ -127,11 +127,24 @@ int main(int argc, char** argv)
             controller, UPDATE_FACTORS);
         Factors factors = controller.getFactors();
         cout << "Scale factors:\n"
-            << "  positionEncoderResolution=" << factors.positionEncoderResolution << "\n"
-            << "  velocityEncoderResolution=" << factors.velocityEncoderResolution << "\n"
-            << "  gearRatio=" << factors.gearRatio << "\n"
-            << "  feedConstant=" << factors.feedConstant << "\n"
-            << "  velocityFactor=" << factors.velocityFactor << endl;
+            << "  positionEncoderResolution " << factors.positionEncoderResolution << "\n"
+            << "  velocityEncoderResolution " << factors.velocityEncoderResolution << "\n"
+            << "  velocityFactor     " << factors.velocityFactor << "\n"
+            << "  accelerationFactor " << factors.accelerationFactor << "\n"
+            << "  gearRatio    " << factors.gearRatio << "\n"
+            << "  feedConstant " << factors.feedConstant << "\n"
+            << "  ratedTorque  " << factors.ratedTorque << "\n"
+            << "  ratedCurrent " << factors.ratedCurrent << endl;
+
+        sendAndWait(*device, controller.queryJointLimits(),
+            controller, UPDATE_JOINT_LIMITS);
+        auto jointLimits = controller.getJointLimits();
+        cout << "Current joint limits:\n" <<
+            "  position     [" << jointLimits.min.position << ", " << jointLimits.max.position << "]\n" <<
+            "  speed        [" << jointLimits.min.speed << ", " << jointLimits.max.speed << "]\n" <<
+            "  acceleration [" << jointLimits.min.acceleration << ", " << jointLimits.max.acceleration << "]\n" <<
+            "  effort       [" << jointLimits.min.effort << ", " << jointLimits.max.effort << "]\n" <<
+            "  current      [" << jointLimits.min.raw << ", " << jointLimits.max.raw << "]" << endl;
     }
     else if (cmd == "set-state")
     {

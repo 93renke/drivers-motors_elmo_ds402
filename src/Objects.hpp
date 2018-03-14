@@ -11,7 +11,8 @@ namespace motors_elmo_ds402
         UPDATE_HEARTBEAT    = 0x00000001,
         UPDATE_STATUS_WORD  = 0x00000002,
         UPDATE_FACTORS      = 0x00000004,
-        UPDATE_JOINT_STATE  = 0x00000008
+        UPDATE_JOINT_STATE  = 0x00000008,
+        UPDATE_JOINT_LIMITS = 0x00000010
     };
 
     template<typename T, typename Raw> T parse(Raw value);
@@ -87,7 +88,7 @@ namespace motors_elmo_ds402
     CANOPEN_DEFINE_RW_OBJECT(0x6070, 0, VelocityThresholdTime,         std::uint16_t, 0);
     CANOPEN_DEFINE_RW_OBJECT(0x6071, 0, TargetTorque,                  std::int16_t, 0);
     CANOPEN_DEFINE_RW_OBJECT(0x6072, 0, MaxTorque,                     std::uint16_t, 0);
-    CANOPEN_DEFINE_RW_OBJECT(0x6073, 0, MaxCurrent,                    std::uint16_t, 0);
+    CANOPEN_DEFINE_RW_OBJECT(0x6073, 0, MaxCurrent,                    std::uint16_t, UPDATE_JOINT_LIMITS);
     CANOPEN_DEFINE_RO_OBJECT(0x6074, 0, TorqueDemand,                  std::int16_t, 0);
     CANOPEN_DEFINE_RO_OBJECT(0x6075, 0, MotorRatedCurrent,             std::uint32_t, UPDATE_FACTORS);
     CANOPEN_DEFINE_RO_OBJECT(0x6077, 0, TorqueActualValue,             std::int16_t, UPDATE_JOINT_STATE);
@@ -96,11 +97,11 @@ namespace motors_elmo_ds402
     CANOPEN_DEFINE_RW_OBJECT(0x607A, 0, TargetPosition,                std::int32_t, 0);
     CANOPEN_DEFINE_RW_OBJECT(0x607B, 1, PositionRangeLimitMin,         std::int32_t, 0);
     CANOPEN_DEFINE_RW_OBJECT(0x607B, 2, PositionRangeLimitMax,         std::int32_t, 0);
-    CANOPEN_DEFINE_RW_OBJECT(0x607D, 1, SoftwarePositionLimitMin,      std::int32_t, 0);
-    CANOPEN_DEFINE_RW_OBJECT(0x607D, 2, SoftwarePositionLimitMax,      std::int32_t, 0);
+    CANOPEN_DEFINE_RW_OBJECT(0x607D, 1, SoftwarePositionLimitMin,      std::int32_t, UPDATE_JOINT_LIMITS);
+    CANOPEN_DEFINE_RW_OBJECT(0x607D, 2, SoftwarePositionLimitMax,      std::int32_t, UPDATE_JOINT_LIMITS);
     CANOPEN_DEFINE_RW_OBJECT(0x607E, 0, Polarity,                      std::int8_t, 0);
     CANOPEN_DEFINE_RW_OBJECT(0x607F, 0, MaxProfileVelocity,            std::uint32_t, 0);
-    CANOPEN_DEFINE_RW_OBJECT(0x6080, 0, MaxMotorSpeed,                 std::uint32_t, 0);
+    CANOPEN_DEFINE_RW_OBJECT(0x6080, 0, MaxMotorSpeed,                 std::int32_t, UPDATE_JOINT_LIMITS);
     CANOPEN_DEFINE_RW_OBJECT(0x6081, 0, ProfileVelocity,               std::uint32_t, 0);
     CANOPEN_DEFINE_RW_OBJECT(0x6082, 0, EndVelocity,                   std::uint32_t, 0);
     CANOPEN_DEFINE_RW_OBJECT(0x6083, 0, ProfileAcceleration,           std::uint32_t, 0);
@@ -120,8 +121,8 @@ namespace motors_elmo_ds402
     CANOPEN_DEFINE_RW_OBJECT(0x6096, 2, VelocityFactorDen,             std::uint32_t, UPDATE_FACTORS);
     CANOPEN_DEFINE_RW_OBJECT(0x6097, 1, AccelerationFactorNum,         std::uint32_t, UPDATE_FACTORS);
     CANOPEN_DEFINE_RW_OBJECT(0x6097, 2, AccelerationFactorDen,         std::uint32_t, UPDATE_FACTORS);
-    CANOPEN_DEFINE_RW_OBJECT(0x60C5, 0, MaxAcceleration,               std::uint32_t, 0);
-    CANOPEN_DEFINE_RW_OBJECT(0x60C5, 0, MaxDeceleration,               std::uint32_t, 0);
+    CANOPEN_DEFINE_RW_OBJECT(0x60C5, 0, MaxAcceleration,               std::int32_t, UPDATE_JOINT_LIMITS);
+    CANOPEN_DEFINE_RW_OBJECT(0x60C6, 0, MaxDeceleration,               std::int32_t, UPDATE_JOINT_LIMITS);
     CANOPEN_DEFINE_RO_OBJECT(0x60F4, 0, FollowingErrorActualValue,     std::int32_t, 0);
     CANOPEN_DEFINE_RO_OBJECT(0x60FA, 0, ControlEffort,                 std::int32_t, 0);
     CANOPEN_DEFINE_RO_OBJECT(0x60FC, 0, PositionDemandInternalValue,   std::int32_t, 0);

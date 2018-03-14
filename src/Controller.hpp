@@ -6,6 +6,7 @@
 #include <motors_elmo_ds402/Update.hpp>
 #include <motors_elmo_ds402/Factors.hpp>
 #include <base/JointState.hpp>
+#include <base/JointLimitRange.hpp>
 
 namespace motors_elmo_ds402 {
     struct HasPendingQuery : public std::runtime_error {};
@@ -77,6 +78,22 @@ namespace motors_elmo_ds402 {
          * Reads the factor objects from the object dictionary and return them
          */
         base::JointState getJointState() const;
+
+        /** Returns the set of SDO upload queries that allow
+         * to get the current joint limits
+         */
+        std::vector<canbus::Message> queryJointLimits() const;
+
+        /**
+         * Reads the joint limits from the object dictionary and return them
+         */
+        base::JointLimitRange getJointLimits() const;
+
+        /**
+         * Sets the joint limits and return the set of messages necessary to
+         * change them on the drive
+         */
+        std::vector<canbus::Message> setJointLimits(base::JointLimitRange const& limits);
 
         template<typename T>
         canbus::Message send(T const& object)
