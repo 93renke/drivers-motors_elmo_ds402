@@ -2,40 +2,6 @@
 
 using namespace motors_elmo_ds402;
 
-uint16_t ControlWord::encode() const
-{
-    uint16_t word = 0;
-    switch(transition)
-    {
-        case SHUTDOWN:
-            word = 0x06;
-            break;
-        case SWITCH_ON:
-            word = 0x07;
-            break;
-        case ENABLE_OPERATION:
-            word = 0x0F;
-            break;
-        case DISABLE_VOLTAGE:
-            word = 0x00;
-            break;
-        case QUICK_STOP:
-            word = 0x02;
-            break;
-        case DISABLE_OPERATION:
-            word = 0x07;
-            break;
-        case FAULT_RESET:
-            word = 0x10;
-            break;
-    }
-
-    if (enable_halt)
-        word |= 0x100;
-
-    return word;
-}
-
 StatusWord::State parseState(uint8_t byte)
 {
     switch(byte & 0x4F)
@@ -57,13 +23,52 @@ StatusWord::State parseState(uint8_t byte)
     throw StatusWord::UnknownState("received an unknown value for the state");
 }
 
-StatusWord StatusWord::parse(uint16_t word)
+namespace motors_elmo_ds402
 {
-    State state = parseState(word & 0x6F);
-    bool voltageEnabled = (word & 0x0010);
-    bool warning        = (word & 0x0080);
-    bool targetReached  = (word & 0x0400);
-    bool internalLimitActive = (word & 0x0800);
-    return StatusWord { state, voltageEnabled, warning,
-        targetReached, internalLimitActive };
+    template<>
+    uint16_t encode<ControlWord, uint16_t>(ControlWord const& value)
+    {
+        uint16_t word = 0;
+        switch(value.transition)
+        {
+            case ControlWord::SHUTDOWN:
+                word = 0x06;
+                break;
+            case ControlWord::SWITCH_ON:
+                word = 0x07;
+                break;
+            case ControlWord::ENABLE_OPERATION:
+                word = 0x0F;
+                break;
+            case ControlWord::DISABLE_VOLTAGE:
+                word = 0x00;
+                break;
+            case ControlWord::QUICK_STOP:
+                word = 0x02;
+                break;
+            case ControlWord::DISABLE_OPERATION:
+                word = 0x07;
+                break;
+            case ControlWord::FAULT_RESET:
+                word = 0x10;
+                break;
+        }
+
+        if (value.enable_halt)
+            word |= 0x100;
+
+        return word;
+    }
+
+    template<>
+    StatusWord parse<StatusWord, uint16_t>(uint16_t word)
+    {
+        StatusWord::State state = parseState(word & 0x6F);
+        bool voltageEnabled = (word & 0x0010);
+        bool warning        = (word & 0x0080);
+        bool targetReached  = (word & 0x0400);
+        bool internalLimitActive = (word & 0x0800);
+        return StatusWord { state, voltageEnabled, warning,
+            targetReached, internalLimitActive };
+    }
 }

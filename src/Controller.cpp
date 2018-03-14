@@ -33,57 +33,61 @@ std::vector<canbus::Message> Controller::queryFactors()
 {
     return std::vector<canbus::Message>
     {
-        // Position encoder
-        mCanOpen.upload(0x608F, 1),
-        mCanOpen.upload(0x608F, 2),
-        // Velocity encoder
-        mCanOpen.upload(0x6090, 1),
-        mCanOpen.upload(0x6090, 2),
-        // Gear Ratio
-        mCanOpen.upload(0x6091, 1),
-        mCanOpen.upload(0x6091, 2),
-        // Feed constant
-        mCanOpen.upload(0x6092, 1),
-        mCanOpen.upload(0x6092, 2),
-        // Velocity Factor
-        mCanOpen.upload(0x6096, 1),
-        mCanOpen.upload(0x6096, 2),
-        // Acceleration Factor
-        mCanOpen.upload(0x6097, 1),
-        mCanOpen.upload(0x6097, 2)
+        queryObject<PositionEncoderResolutionNum>(),
+        queryObject<PositionEncoderResolutionDen>(),
+        queryObject<VelocityEncoderResolutionNum>(),
+        queryObject<VelocityEncoderResolutionDen>(),
+        queryObject<GearRatioNum>(),
+        queryObject<GearRatioDen>(),
+        queryObject<FeedConstantNum>(),
+        queryObject<FeedConstantDen>(),
+        queryObject<VelocityFactorNum>(),
+        queryObject<VelocityFactorDen>(),
+        queryObject<AccelerationFactorNum>(),
+        queryObject<AccelerationFactorDen>()
     };
 }
 
 Factors Controller::getFactors() const
 {
-    // Position encoder
-    uint32_t positionEncoderNum = mCanOpen.get<uint32_t>(0x608F, 1);
-    uint32_t positionEncoderDen = mCanOpen.get<uint32_t>(0x608F, 2);
-    // Velocity encoder
-    uint32_t velocityEncoderNum = mCanOpen.get<uint32_t>(0x6090, 1);
-    uint32_t velocityEncoderDen = mCanOpen.get<uint32_t>(0x6090, 2);
-    // Gear Ratio
-    uint32_t gearRatioNum = mCanOpen.get<uint32_t>(0x6091, 1);
-    uint32_t gearRatioDen = mCanOpen.get<uint32_t>(0x6091, 2);
-    // Feed constant
-    uint32_t feedConstantNum = mCanOpen.get<uint32_t>(0x6092, 1);
-    uint32_t feedConstantDen = mCanOpen.get<uint32_t>(0x6092, 2);
-    // Velocity Factor
-    uint32_t velocityFactorNum = mCanOpen.get<uint32_t>(0x6096, 1);
-    uint32_t velocityFactorDen = mCanOpen.get<uint32_t>(0x6096, 2);
-    // Acceleration Factor
-    uint32_t accelerationFactorNum = mCanOpen.get<uint32_t>(0x6097, 1);
-    uint32_t accelerationFactorDen = mCanOpen.get<uint32_t>(0x6097, 2);
+    double positionEncoderResolution = getRational<
+        PositionEncoderResolutionNum,
+        PositionEncoderResolutionDen>();
+
+    double velocityEncoderResolution = getRational<
+        VelocityEncoderResolutionNum,
+        VelocityEncoderResolutionDen>();
+
+    double gearRatio = getRational<
+        GearRatioNum,
+        GearRatioDen>();
+
+    double feedConstant = getRational<
+        FeedConstantNum,
+        FeedConstantDen>();
+
+    double velocityFactor = getRational<
+        VelocityFactorNum,
+        VelocityFactorDen>();
+
+    double accelerationFactor = getRational<
+        AccelerationFactorNum,
+        AccelerationFactorDen>();
 
     return Factors {
-        static_cast<double>(positionEncoderNum) / positionEncoderDen,
-        static_cast<double>(velocityEncoderNum) / velocityEncoderDen,
-        static_cast<double>(gearRatioNum) / gearRatioDen,
-        static_cast<double>(feedConstantNum) / feedConstantDen,
-        static_cast<double>(velocityFactorNum) / velocityFactorDen,
-        static_cast<double>(accelerationFactorNum) / accelerationFactorDen,
+        positionEncoderResolution,
+        velocityEncoderResolution,
+        gearRatio,
+        feedConstant,
+        velocityFactor,
+        accelerationFactor
     };
 }
+
+#define UPDATE_CASE(object) \
+    case (static_cast<uint32_t>(object::OBJECT_ID) << 16 | object::OBJECT_SUB_ID): \
+        update |= object::UPDATE_ID; \
+        break;
 
 Update Controller::process(canbus::Message const& msg)
 {
@@ -95,19 +99,24 @@ Update Controller::process(canbus::Message const& msg)
     }
     for (auto it = canUpdate.begin(); it != canUpdate.end(); ++it)
     {
-        switch(it->first)
+        uint32_t fullId = static_cast<uint32_t>(it->first) << 16 | it->second;
+        switch(fullId)
         {
-            case StatusWord::OBJECT_ID:
-                update |= StatusWord::UPDATE_ID;
-                break;
-            case 0x608F:
-            case 0x6090:
-            case 0x6091:
-            case 0x6092:
-            case 0x6096:
-            case 0x6097:
-                update |= UPDATE_FACTORS;
-                break;
+            UPDATE_CASE(StatusWord);
+
+            // UPDATE_FACTORS
+            UPDATE_CASE(PositionEncoderResolutionNum);
+            UPDATE_CASE(PositionEncoderResolutionDen);
+            UPDATE_CASE(VelocityEncoderResolutionNum);
+            UPDATE_CASE(VelocityEncoderResolutionDen);
+            UPDATE_CASE(GearRatioNum);
+            UPDATE_CASE(GearRatioDen);
+            UPDATE_CASE(FeedConstantNum);
+            UPDATE_CASE(FeedConstantDen);
+            UPDATE_CASE(VelocityFactorNum);
+            UPDATE_CASE(VelocityFactorDen);
+            UPDATE_CASE(AccelerationFactorNum);
+            UPDATE_CASE(AccelerationFactorDen);
         }
     }
 
@@ -120,7 +129,32 @@ StatusWord Controller::getStatusWord() const
 }
 
 template<typename T>
+typename T::OBJECT_TYPE Controller::getRaw() const
+{
+    return mCanOpen.get<typename T::OBJECT_TYPE>(T::OBJECT_ID, T::OBJECT_SUB_ID);
+}
+
+template<typename T>
 T Controller::get() const
 {
-    return T::parse(mCanOpen.get<typename T::OBJECT_TYPE>(T::OBJECT_ID, T::OBJECT_SUB_ID));
+    return parse<T, typename T::OBJECT_TYPE>(getRaw<T>());
+}
+
+template<typename Num, typename Den>
+double Controller::getRational() const
+{
+    auto num = getRaw<Num>();
+    auto den = getRaw<Den>();
+    return static_cast<double>(num) / den;
+}
+
+template<typename T>
+canbus::Message Controller::queryObject() const
+{
+    return mCanOpen.upload(T::OBJECT_ID, T::OBJECT_SUB_ID);
+}
+
+base::JointState Controller::getJointState() const
+{
+
 }

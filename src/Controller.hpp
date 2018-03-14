@@ -5,6 +5,7 @@
 #include <motors_elmo_ds402/Objects.hpp>
 #include <motors_elmo_ds402/Update.hpp>
 #include <motors_elmo_ds402/Factors.hpp>
+#include <base/JointState.hpp>
 
 namespace motors_elmo_ds402 {
     struct HasPendingQuery : public std::runtime_error {};
@@ -52,10 +53,21 @@ namespace motors_elmo_ds402 {
          */
         Factors getFactors() const;
 
+        /** Return the set of SDO upload queries that allow
+         * to update the joint state
+         */
+        std::vector<canbus::Message> queryJointState();
+
+        /** 
+         * Reads the factor objects from the object dictionary and return them
+         */
+        base::JointState getJointState() const;
+
         template<typename T>
         canbus::Message send(T const& object)
         {
-            return mCanOpen.download(T::OBJECT_ID, T::OBJECT_SUB_ID, object.encode());
+            return mCanOpen.download(T::OBJECT_ID, T::OBJECT_SUB_ID,
+                encode<T, typename T::OBJECT_TYPE>(object));
         }
 
         /** Process a can message and returns what got updated
@@ -65,7 +77,11 @@ namespace motors_elmo_ds402 {
     private:
         StateMachine mCanOpen;
 
+        template<typename T>
+        canbus::Message queryObject() const;
         template<typename T> T get() const;
+        template<typename T> typename T::OBJECT_TYPE getRaw() const;
+        template<typename Num, typename Den> double getRational() const;
     };
 }
 
