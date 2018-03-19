@@ -184,9 +184,18 @@ int main(int argc, char** argv)
     {
         queryObjects(*device, controller.queryFactors(),
             controller, UPDATE_FACTORS);
+        writeObject(*device,
+            controller.send(ControlWord(ControlWord::SHUTDOWN, true)),
+            controller);
         writeObjects(*device,
             controller.queryPeriodicJointStateUpdate(1, base::Time::fromMilliseconds(100)),
             controller);
+        writeObject(*device,
+            controller.send(ControlWord(ControlWord::SWITCH_ON, true)),
+            controller);
+
+        canbus::Message sync = controller.querySync();
+        device->write(sync);
 
         cout << setw(10) << "Position" << " "
             << setw(10) << "Speed" << " "
@@ -194,6 +203,7 @@ int main(int argc, char** argv)
             << setw(10) << "Current" << endl;
         while(true)
         {
+            device->write(sync);
             canbus::Message msg = device->read();
             if (controller.process(msg).isUpdated(UPDATE_JOINT_STATE))
             {

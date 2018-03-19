@@ -34,6 +34,9 @@ namespace motors_elmo_ds402 {
          */
         double getRatedTorque() const;
 
+        /** Create a Sync message */
+        canbus::Message querySync() const;
+
         /** Query the canopen node state */
         canbus::Message queryNodeState() const;
 
