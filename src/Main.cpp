@@ -4,6 +4,8 @@
 #include <motors_elmo_ds402/Controller.hpp>
 #include <string>
 #include <iomanip>
+#include <signal.h>
+#include <cstring>
 
 using namespace std;
 using namespace motors_elmo_ds402;
@@ -98,6 +100,27 @@ static void queryObjects(canbus::Driver& device, std::vector<canbus::Message> co
     }
 }
 
+struct Deinit
+{
+    canbus::Driver& mCan;
+    Controller& mController;
+
+    Deinit(canbus::Driver& d, Controller& c)
+	: mCan(d), mController(c) {}
+    ~Deinit()
+    {
+        writeObject(mCan,
+            mController.send(ControlWord(ControlWord::SHUTDOWN, true)),
+            mController);
+    }
+};
+
+bool interrupted = false;
+void sigint(int)
+{
+    interrupted = true;
+}
+
 int main(int argc, char** argv)
 {
     if (argc < 5) {
@@ -111,6 +134,24 @@ int main(int argc, char** argv)
 
     unique_ptr<canbus::Driver> device(canbus::openCanDevice(can_device, can_device_type));
     Controller controller(node_id);
+
+    struct sigaction sigint_handler;
+    std::memset(&sigint_handler, 0, sizeof(sigint_handler));
+    sigint_handler.sa_handler = &sigint;
+    sigemptyset(&sigint_handler.sa_mask);
+    if (-1 == sigaction(SIGINT, &sigint_handler, 0))
+    {
+        std::cerr << "failed to install SIGINT handler" << std::endl;
+        return 1;
+    }
+    sigset_t unblock_sigint;
+    sigemptyset(&unblock_sigint);
+    sigaddset(&unblock_sigint, SIGINT);
+    if (-1 == sigprocmask(SIG_UNBLOCK, &unblock_sigint, NULL))
+    {
+        std::cerr << "failed to install SIGINT handler" << std::endl;
+        return 1;
+    }
 
     if (cmd == "reset")
     {
