@@ -61,7 +61,8 @@ std::vector<canbus::Message> Controller::queryFactors()
         queryObject<FeedConstantDen>(),
         queryObject<VelocityFactorNum>(),
         queryObject<VelocityFactorDen>(),
-        queryObject<MotorRatedCurrent>()
+        queryObject<MotorRatedCurrent>(),
+        queryObject<MotorRatedTorque>()
     };
 }
 
@@ -73,32 +74,13 @@ Factors Controller::getFactors() const
 Factors Controller::computeFactors() const
 {
     Factors factors;
-
-    factors.positionEncoderResolution = getRational<
-        PositionEncoderResolutionNum,
-        PositionEncoderResolutionDen>();
-
-    factors.velocityEncoderResolution = getRational<
-        VelocityEncoderResolutionNum,
-        VelocityEncoderResolutionDen>();
-
-    factors.accelerationFactor = getRational<
-        AccelerationFactorNum,
-        AccelerationFactorDen>();
-
-    factors.gearRatio = getRational<
-        GearRatioNum,
-        GearRatioDen>();
-
-    factors.feedConstant = getRational<
-        FeedConstantNum,
-        FeedConstantDen>();
-
-    factors.velocityFactor = getRational<
-        VelocityFactorNum,
-        VelocityFactorDen>();
-
-    factors.ratedTorque  = mRatedTorque;
+    factors.encoderTicks = getRaw<PositionEncoderResolutionNum>();
+    factors.encoderRevolutions = getRaw<PositionEncoderResolutionDen>();
+    factors.gearMotorShaftRevolutions = getRaw<GearRatioNum>();
+    factors.gearDrivingShaftRevolutions = getRaw<GearRatioDen>();
+    factors.feedLength = getRaw<FeedConstantNum>();
+    factors.feedDrivingShaftRevolutions = getRaw<FeedConstantDen>();
+    factors.ratedTorque  = static_cast<double>(getRaw<MotorRatedTorque>()) / 1000;
     factors.ratedCurrent = static_cast<double>(getRaw<MotorRatedCurrent>()) / 1000;
     return factors;
 }
@@ -152,6 +134,7 @@ Update Controller::process(canbus::Message const& msg)
             SDO_UPDATE_CASE(VelocityFactorNum);
             SDO_UPDATE_CASE(VelocityFactorDen);
             SDO_UPDATE_CASE(MotorRatedCurrent);
+            SDO_UPDATE_CASE(MotorRatedTorque);
 
             // UPDATE_JOINT_STATE
             SDO_UPDATE_CASE(PositionActualInternalValue);
@@ -195,14 +178,6 @@ T Controller::get() const
     return parse<T, typename T::OBJECT_TYPE>(getRaw<T>());
 }
 
-template<typename Num, typename Den>
-double Controller::getRational() const
-{
-    auto num = getRaw<Num>();
-    auto den = getRaw<Den>();
-    return static_cast<double>(num) / den;
-}
-
 template<typename T>
 canbus::Message Controller::queryObject() const
 {
@@ -228,10 +203,10 @@ base::JointState Controller::getJointState() const
     auto current_and_torque = getRaw<CurrentActualValue>();
 
     base::JointState state;
-    state.position = mFactors.positionToUser(position);
-    state.speed    = mFactors.velocityToUser(velocity);
+    state.position = mFactors.scaleEncoderValue(position);
+    state.speed    = mFactors.scaleEncoderValue(velocity);
     state.raw      = mFactors.currentToUser(current_and_torque);
-    state.effort   = mFactors.torqueToUser(current_and_torque);
+    state.effort   = mFactors.currentToUserTorque(current_and_torque);
     return state;
 }
 
@@ -261,8 +236,8 @@ base::JointLimitRange Controller::getJointLimits() const
     }
     else
     {
-        min.position = mFactors.positionToUser(rawPositionMin);
-        max.position = mFactors.positionToUser(rawPositionMax);
+        min.position = mFactors.scaleEncoderValue(rawPositionMin);
+        max.position = mFactors.scaleEncoderValue(rawPositionMax);
     }
 
     int32_t rawMaxSpeed = getRaw<MaxMotorSpeed>();
@@ -273,25 +248,16 @@ base::JointLimitRange Controller::getJointLimits() const
     }
     else
     {
-        double speedLimit = mFactors.velocityToUser(rawMaxSpeed);
+        double speedLimit = mFactors.scaleEncoderValue(rawMaxSpeed);
         min.speed = -speedLimit;
         max.speed = speedLimit;
     }
 
-    int rawMinAcceleration = getRaw<MaxDeceleration>();
-    if (rawMinAcceleration == 2147483647)
-        min.acceleration = -base::infinity<double>();
-    else
-        min.acceleration = -mFactors.accelerationToUser(rawMinAcceleration);
-
-    int rawMaxAcceleration = getRaw<MaxDeceleration>();
-    if (rawMaxAcceleration == 2147483647)
-        max.acceleration = base::infinity<double>();
-    else
-        max.acceleration = mFactors.accelerationToUser(rawMaxAcceleration);
+    min.acceleration = -base::infinity<double>();
+    max.acceleration = base::infinity<double>();
 
     auto torqueAndCurrentLimit = getRaw<MaxCurrent>();
-    double torqueLimit = mFactors.torqueToUser(torqueAndCurrentLimit);
+    double torqueLimit = mFactors.currentToUserTorque(torqueAndCurrentLimit);
     min.effort = -torqueLimit;
     max.effort = torqueLimit;
 

@@ -211,12 +211,12 @@ int main(int argc, char** argv)
             controller, UPDATE_FACTORS);
         Factors factors = controller.getFactors();
         cout << "Scale factors:\n"
-            << "  positionEncoderResolution " << factors.positionEncoderResolution << "\n"
-            << "  velocityEncoderResolution " << factors.velocityEncoderResolution << "\n"
-            << "  velocityFactor     " << factors.velocityFactor << "\n"
-            << "  accelerationFactor " << factors.accelerationFactor << "\n"
-            << "  gearRatio    " << factors.gearRatio << "\n"
-            << "  feedConstant " << factors.feedConstant << "\n"
+            << "  encoder " << factors.encoderTicks <<
+                " / " << factors.encoderRevolutions << "\n"
+            << "  gearRatio    " << factors.gearMotorShaftRevolutions <<
+                " / " << factors.gearDrivingShaftRevolutions << "\n"
+            << "  feedConstant " << factors.feedLength <<
+                " / " << factors.feedDrivingShaftRevolutions << "\n"
             << "  ratedTorque  " << factors.ratedTorque << "\n"
             << "  ratedCurrent " << factors.ratedCurrent << endl;
 

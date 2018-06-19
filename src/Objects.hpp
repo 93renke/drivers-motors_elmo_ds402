@@ -97,6 +97,7 @@ namespace motors_elmo_ds402
     CANOPEN_DEFINE_RW_OBJECT(0x6073, 0, MaxCurrent,                    std::uint16_t, UPDATE_JOINT_LIMITS);
     CANOPEN_DEFINE_RO_OBJECT(0x6074, 0, TorqueDemand,                  std::int16_t, 0);
     CANOPEN_DEFINE_RO_OBJECT(0x6075, 0, MotorRatedCurrent,             std::uint32_t, UPDATE_FACTORS);
+    CANOPEN_DEFINE_RO_OBJECT(0x6076, 0, MotorRatedTorque,              std::uint32_t, UPDATE_FACTORS);
     CANOPEN_DEFINE_RO_OBJECT(0x6077, 0, TorqueActualValue,             std::int16_t, 0);
     CANOPEN_DEFINE_RO_OBJECT(0x6078, 0, CurrentActualValue,            std::int16_t, UPDATE_JOINT_CURRENT);
     CANOPEN_DEFINE_RO_OBJECT(0x6079, 0, DCLinkCircuitVoltage,          std::uint32_t, 0);
