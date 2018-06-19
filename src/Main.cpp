@@ -245,9 +245,13 @@ int main(int argc, char** argv)
         writeObject(*device,
             controller.send(ControlWord(ControlWord::SHUTDOWN, true)),
             controller);
+        device->write(controller.queryNodeStateTransition(
+            canopen_master::NODE_ENTER_PRE_OPERATIONAL));
         writeObjects(*device,
             controller.queryPeriodicJointStateUpdate(1, base::Time::fromMilliseconds(100)),
             controller);
+        device->write(controller.queryNodeStateTransition(
+            canopen_master::NODE_START));
         writeObject(*device,
             controller.send(ControlWord(ControlWord::SWITCH_ON, true)),
             controller);
