@@ -51,8 +51,13 @@ namespace motors_elmo_ds402
 
         bool isUpdated(uint64_t updateId)
         {
-            return (mUpdatedObjects & updateId);
+            return (mUpdatedObjects & updateId) == updateId;
         }
+
+	void merge(Update const& update)
+	{
+	    mUpdatedObjects |= update.mUpdatedObjects;
+	}
     };
 }
 

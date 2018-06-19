@@ -248,33 +248,43 @@ int main(int argc, char** argv)
         device->write(controller.queryNodeStateTransition(
             canopen_master::NODE_ENTER_PRE_OPERATIONAL));
         writeObjects(*device,
-            controller.queryPeriodicJointStateUpdate(1, base::Time::fromMilliseconds(100)),
+            controller.queryPeriodicJointStateUpdate(0, base::Time::fromMilliseconds(0)),
             controller);
         device->write(controller.queryNodeStateTransition(
             canopen_master::NODE_START));
         writeObject(*device,
             controller.send(ControlWord(ControlWord::SWITCH_ON, true)),
             controller);
+        device->setReadTimeout(1500);
 
         canbus::Message sync = controller.querySync();
         device->write(sync);
 
         cout << setw(10) << "Position" << " "
             << setw(10) << "Speed" << " "
-            << setw(10) << "Effort" << " " 
+            << setw(10) << "Effort" << " "
             << setw(10) << "Current" << endl;
+
+        Update state;
         while(true)
         {
+            state = Update();
             device->write(sync);
-            canbus::Message msg = device->read();
-            if (controller.process(msg).isUpdated(UPDATE_JOINT_STATE))
+
+            while (!interrupted && !state.isUpdated(UPDATE_JOINT_STATE))
             {
-                base::JointState jointState = controller.getJointState();
-                cout << setw(10) << jointState.position << " "
-                    << setw(10) << jointState.speed << " "
-                    << setw(10) << jointState.effort << " " 
-                    << setw(10) << jointState.raw << endl;
+                canbus::Message msg = device->read();
+                state.merge(controller.process(msg));
             }
+
+            if (interrupted)
+                break;
+
+            base::JointState jointState = controller.getJointState();
+            cout << setw(10) << jointState.position << " "
+                << setw(10) << jointState.speed << " "
+                << setw(10) << jointState.effort << " "
+                << setw(10) << jointState.raw << endl;
         }
     }
     return 0;
