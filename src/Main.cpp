@@ -2,6 +2,7 @@
 #include <canbus.hh>
 #include <memory>
 #include <motors_elmo_ds402/Controller.hpp>
+#include <iodrivers_base/Driver.hpp>
 #include <string>
 #include <iomanip>
 #include <signal.h>
@@ -48,6 +49,21 @@ ControlWord::Transition transitionFromString(std::string const& string)
     if (string == "FAULT_RESET") return ControlWord::FAULT_RESET;
     throw std::invalid_argument("unexpected state transition " + string);
 }
+
+struct DisplayStats
+{
+    iodrivers_base::Driver* driver;
+
+    DisplayStats(iodrivers_base::Driver* driver)
+        : driver(driver) {}
+
+    ~DisplayStats() {
+        if (driver) {
+            auto status = driver->getStatus();
+            std::cerr << "tx=" << status.tx << " good_rx=" << status.good_rx << " bad_rx=" << status.bad_rx << std::endl;
+        }
+    }
+};
 
 static void writeObject(canbus::Driver& device, canbus::Message const& query,
     motors_elmo_ds402::Controller& controller,
@@ -133,6 +149,7 @@ int main(int argc, char** argv)
     std::string cmd(argv[4]);
 
     unique_ptr<canbus::Driver> device(canbus::openCanDevice(can_device, can_device_type));
+    DisplayStats stats(dynamic_cast<iodrivers_base::Driver*>(device.get()));
     Controller controller(node_id);
 
     struct sigaction sigint_handler;
