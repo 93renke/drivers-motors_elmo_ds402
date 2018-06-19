@@ -238,6 +238,18 @@ int main(int argc, char** argv)
         auto transition = transitionFromString(argv[5]);
         writeObject(*device, controller.send(ControlWord(transition, true)), controller);
     }
+    else if (cmd == "save")
+    {
+        if (argc != 5)
+            return usage();
+        writeObject(*device, controller.querySave(), controller);
+    }
+    else if (cmd == "load")
+    {
+        if (argc != 5)
+            return usage();
+        writeObject(*device, controller.queryLoad(), controller);
+    }
     else if (cmd == "monitor-joint-state")
     {
         queryObjects(*device, controller.queryFactors(),

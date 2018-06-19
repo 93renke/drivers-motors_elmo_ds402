@@ -12,7 +12,7 @@ namespace motors_elmo_ds402 {
     struct HasPendingQuery : public std::runtime_error {};
 
     /** Representation of a controller through the CANOpen protocol
-     * 
+     *
      * This is designed to be independent of _how_ the CAN bus
      * itself is being accessed. It represents only the protocol
      */
@@ -25,7 +25,7 @@ namespace motors_elmo_ds402 {
         Controller(uint8_t nodeId);
 
         /** Give the motor rated torque
-         * 
+         *
          * This is necessary to use torque commands and status
          */
         void setRatedTorque(double torque);
@@ -62,10 +62,10 @@ namespace motors_elmo_ds402 {
          */
         std::vector<canbus::Message> queryFactors();
 
-        /** 
+        /**
          * Returns the conversion factor object between Elmo's internal units
          * and physical units
-         * 
+         *
          * This is a cached object that is updated every time the corresponding
          * SDOs are uploaded. All factors can be queried by sending the messages
          * returned by queryFactors.
@@ -77,7 +77,7 @@ namespace motors_elmo_ds402 {
          */
         std::vector<canbus::Message> queryJointState() const;
 
-        /** 
+        /**
          * Reads the factor objects from the object dictionary and return them
          */
         base::JointState getJointState() const;
@@ -114,6 +114,12 @@ namespace motors_elmo_ds402 {
         /** Process a can message and returns what got updated
          */
         Update process(canbus::Message const& msg);
+
+        /** Save configuration to non-volatile memory */
+        canbus::Message querySave();
+
+        /** Load configuration from non-volatile memory */
+        canbus::Message queryLoad();
 
     private:
         StateMachine mCanOpen;

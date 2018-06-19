@@ -305,3 +305,15 @@ vector<canbus::Message> Controller::queryPeriodicJointStateUpdate(
     messages.insert(messages.end(), pdo1.begin(), pdo1.end());
     return messages;
 }
+
+canbus::Message Controller::querySave()
+{
+    uint8_t buffer[4] = { 's', 'a', 'v', 'e' };
+    return mCanOpen.download(0x1010, 1, buffer, 4);
+}
+
+canbus::Message Controller::queryLoad()
+{
+    uint8_t buffer[4] = { 'l', 'o', 'a', 'd' };
+    return mCanOpen.download(0x1011, 1, buffer, 4);
+}
