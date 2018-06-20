@@ -80,7 +80,7 @@ namespace motors_elmo_ds402 {
         /**
          * Reads the factor objects from the object dictionary and return them
          */
-        base::JointState getJointState() const;
+        base::JointState getJointState(uint64_t fields = UPDATE_JOINT_STATE) const;
 
         /** Returns the set of SDO upload queries that allow
          * to get the current joint limits
@@ -102,7 +102,15 @@ namespace motors_elmo_ds402 {
          * Configure the controller to periodically send joint state information
          */
         std::vector<canbus::Message> queryPeriodicJointStateUpdate(
-            int pdoIndex, base::Time const& period);
+            int pdoIndex, canopen_master::PDOCommunicationParameters, uint64_t fields);
+
+        /** @overload */
+        std::vector<canbus::Message> queryPeriodicJointStateUpdate(
+            int pdoIndex, base::Time const& period, uint64_t fields = UPDATE_JOINT_STATE);
+
+        /** @overload */
+        std::vector<canbus::Message> queryPeriodicJointStateUpdate(
+            int pdoIndex, int syncPeriod, uint64_t fields = UPDATE_JOINT_STATE);
 
         template<typename T>
         canbus::Message send(T const& object)

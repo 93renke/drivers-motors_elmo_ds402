@@ -195,7 +195,7 @@ std::vector<canbus::Message> Controller::queryJointState() const
     };
 }
 
-base::JointState Controller::getJointState() const
+base::JointState Controller::getJointState(uint64_t fields) const
 {
     auto position = getRaw<PositionActualInternalValue>();
     auto velocity = getRaw<VelocityActualValue>();
@@ -203,10 +203,14 @@ base::JointState Controller::getJointState() const
     auto current_and_torque = getRaw<CurrentActualValue>();
 
     base::JointState state;
-    state.position = mFactors.scaleEncoderValue(position);
-    state.speed    = mFactors.scaleEncoderValue(velocity);
-    state.raw      = mFactors.currentToUser(current_and_torque);
-    state.effort   = mFactors.currentToUserTorque(current_and_torque);
+    if (fields & UPDATE_JOINT_POSITION)
+        state.position = mFactors.scaleEncoderValue(position);
+    if (fields & UPDATE_JOINT_VELOCITY)
+        state.speed    = mFactors.scaleEncoderValue(velocity);
+    if (fields & UPDATE_JOINT_CURRENT) {
+        state.raw      = mFactors.currentToUser(current_and_torque);
+        state.effort   = mFactors.currentToUserTorque(current_and_torque);
+    }
     return state;
 }
 
@@ -282,27 +286,55 @@ struct PDOMapping : canopen_master::PDOMapping
 };
 
 vector<canbus::Message> Controller::queryPeriodicJointStateUpdate(
-    int pdoIndex, base::Time const& period)
+    int pdoIndex, base::Time const& period, uint64_t fields)
+{
+    canopen_master::PDOCommunicationParameters parameters;
+    parameters.transmission_mode = canopen_master::PDO_ASYNCHRONOUS;
+    parameters.timer_period = period;
+    return queryPeriodicJointStateUpdate(pdoIndex, parameters, fields);
+}
+
+vector<canbus::Message> Controller::queryPeriodicJointStateUpdate(
+    int pdoIndex, int syncPeriod, uint64_t fields)
 {
     canopen_master::PDOCommunicationParameters parameters;
     parameters.transmission_mode = canopen_master::PDO_SYNCHRONOUS;
-    parameters.timer_period = period;
+    parameters.sync_period = syncPeriod;
+    return queryPeriodicJointStateUpdate(pdoIndex, parameters, fields);
+}
 
+vector<canbus::Message> Controller::queryPeriodicJointStateUpdate(
+    int pdoIndex, canopen_master::PDOCommunicationParameters parameters, uint64_t fields)
+{
+    // We need two PDOs only if the three fields are reported. If not, need only
+    // one
     PDOMapping mapping0;
-    mapping0.add<PositionActualInternalValue>();
-    mapping0.add<VelocityActualValue>();
-    auto pdo0 = mCanOpen.configurePDO(true, pdoIndex, parameters, mapping0);
-
     PDOMapping mapping1;
-    mapping1.add<CurrentActualValue>();
-    auto pdo1 = mCanOpen.configurePDO(true, pdoIndex + 1, parameters, mapping1);
-
-    mCanOpen.declarePDOMapping(pdoIndex, mapping0);
-    mCanOpen.declarePDOMapping(pdoIndex + 1, mapping1);
+    if (fields == UPDATE_JOINT_STATE) {
+        mapping0.add<PositionActualInternalValue>();
+        mapping0.add<VelocityActualValue>();
+        mapping1.add<CurrentActualValue>();
+    }
+    else {
+        if (fields & UPDATE_JOINT_POSITION)
+            mapping0.add<PositionActualInternalValue>();
+        if (fields & UPDATE_JOINT_VELOCITY)
+            mapping0.add<VelocityActualValue>();
+        if (fields & UPDATE_JOINT_CURRENT)
+            mapping0.add<CurrentActualValue>();
+    }
 
     vector<canbus::Message> messages;
-    messages.insert(messages.end(), pdo0.begin(), pdo0.end());
-    messages.insert(messages.end(), pdo1.begin(), pdo1.end());
+    if (!mapping0.empty()) {
+        auto pdo = mCanOpen.configurePDO(true, pdoIndex, parameters, mapping0);
+        mCanOpen.declarePDOMapping(pdoIndex, mapping0);
+        messages.insert(messages.end(), pdo.begin(), pdo.end());
+    }
+    if (!mapping1.empty()) {
+        auto pdo = mCanOpen.configurePDO(true, pdoIndex + 1, parameters, mapping0);
+        mCanOpen.declarePDOMapping(pdoIndex + 1, mapping1);
+        messages.insert(messages.end(), pdo.begin(), pdo.end());
+    }
     return messages;
 }
 
