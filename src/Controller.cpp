@@ -331,7 +331,7 @@ vector<canbus::Message> Controller::queryPeriodicJointStateUpdate(
         messages.insert(messages.end(), pdo.begin(), pdo.end());
     }
     if (!mapping1.empty()) {
-        auto pdo = mCanOpen.configurePDO(true, pdoIndex + 1, parameters, mapping0);
+        auto pdo = mCanOpen.configurePDO(true, pdoIndex + 1, parameters, mapping1);
         mCanOpen.declarePDOMapping(pdoIndex + 1, mapping1);
         messages.insert(messages.end(), pdo.begin(), pdo.end());
     }
