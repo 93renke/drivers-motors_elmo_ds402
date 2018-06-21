@@ -260,8 +260,7 @@ int main(int argc, char** argv)
         device->write(controller.queryNodeStateTransition(
             canopen_master::NODE_ENTER_PRE_OPERATIONAL));
         writeObjects(*device,
-            controller.queryPeriodicJointStateUpdate(0, base::Time::fromMilliseconds(0)),
-            controller);
+            controller.queryPeriodicJointStateUpdate(0, 1), controller);
         device->write(controller.queryNodeStateTransition(
             canopen_master::NODE_START));
         writeObject(*device,
