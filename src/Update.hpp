@@ -9,9 +9,9 @@ namespace motors_elmo_ds402
     {
         uint32_t mAckedObjectID;
         uint32_t mAckedObjectSubID;
-        uint64_t mUpdatedObjects;
 
     public:
+        uint64_t mUpdatedObjects;
         static Update Ack(int objectId, int objectSubId)
         {
             Update update;

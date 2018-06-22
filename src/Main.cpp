@@ -252,24 +252,35 @@ int main(int argc, char** argv)
     }
     else if (cmd == "monitor-joint-state")
     {
-        queryObjects(*device, controller.queryFactors(),
-            controller, UPDATE_FACTORS);
-        writeObject(*device,
-            controller.send(ControlWord(ControlWord::SHUTDOWN, true)),
-            controller);
+	bool use_sync = true;
+	vector<canbus::Message> pdoSetup;
+	if (argc == 7) {
+	    if (string(argv[5]) == "--time") {
+		use_sync = false;
+		pdoSetup = controller.queryPeriodicJointStateUpdate(
+		    0, base::Time::fromMilliseconds(atoi(argv[6])));
+	    }
+	    else {
+		std::cerr << "Invalid argument to 'monitor-joint-state'" << std::endl;
+		return usage();
+	    }
+	}
+	else if (argc != 5) {
+	    return usage();
+	}
+	else {
+	    pdoSetup = controller.queryPeriodicJointStateUpdate(0, 1);
+	}
         device->write(controller.queryNodeStateTransition(
             canopen_master::NODE_ENTER_PRE_OPERATIONAL));
-        writeObjects(*device,
-            controller.queryPeriodicJointStateUpdate(0, 1), controller);
+        writeObjects(*device, pdoSetup, controller);
         device->write(controller.queryNodeStateTransition(
             canopen_master::NODE_START));
-        writeObject(*device,
-            controller.send(ControlWord(ControlWord::SWITCH_ON, true)),
-            controller);
         device->setReadTimeout(1500);
 
         canbus::Message sync = controller.querySync();
-        device->write(sync);
+	if (use_sync)
+            device->write(sync);
 
         cout << setw(10) << "Position" << " "
             << setw(10) << "Speed" << " "
@@ -280,7 +291,8 @@ int main(int argc, char** argv)
         while(true)
         {
             state = Update();
-            device->write(sync);
+	    if (use_sync)
+                device->write(sync);
 
             while (!interrupted && !state.isUpdated(UPDATE_JOINT_STATE))
             {
