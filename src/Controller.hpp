@@ -5,6 +5,7 @@
 #include <motors_elmo_ds402/Objects.hpp>
 #include <motors_elmo_ds402/Update.hpp>
 #include <motors_elmo_ds402/Factors.hpp>
+#include <motors_elmo_ds402/MotorParameters.hpp>
 #include <base/JointState.hpp>
 #include <base/JointLimitRange.hpp>
 
@@ -71,6 +72,22 @@ namespace motors_elmo_ds402 {
          * returned by queryFactors.
          */
         Factors getFactors() const;
+
+        /** Explicitely sets motor parameters
+         *
+         * The CANOpen objects that store the factors are not saved to non-volatile
+         * memory. They are therefore basically useless for autoconfiguration
+         *
+         * The only one that is saved is the rated current. It is actually
+         * important to get it from the drive, as the current values are
+         * expressed in thousands of this value. Torque has then to be computed
+         * from the current value.
+         *
+         * This allows to set the parameters that can't be extracted from the
+         * drive, updating the internal factors in the process. One usually
+         * wants to read the factors from the drive beforehand with queryFactors().
+         */
+        void setMotorParameters(MotorParameters const& parameters);
 
         /** Return the set of SDO upload queries that allow
          * to update the joint state
@@ -140,7 +157,7 @@ namespace motors_elmo_ds402 {
         canbus::Message queryObject() const;
         template<typename T> T get() const;
         template<typename T> typename T::OBJECT_TYPE getRaw() const;
-        template<typename Num, typename Den> double getRational() const;
+        template<typename T> void setRaw(typename T::OBJECT_TYPE value);
     };
 }
 

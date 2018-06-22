@@ -51,10 +51,6 @@ std::vector<canbus::Message> Controller::queryFactors()
     {
         queryObject<PositionEncoderResolutionNum>(),
         queryObject<PositionEncoderResolutionDen>(),
-        queryObject<VelocityEncoderResolutionNum>(),
-        queryObject<VelocityEncoderResolutionDen>(),
-        queryObject<AccelerationFactorNum>(),
-        queryObject<AccelerationFactorDen>(),
         queryObject<GearRatioNum>(),
         queryObject<GearRatioDen>(),
         queryObject<FeedConstantNum>(),
@@ -62,8 +58,32 @@ std::vector<canbus::Message> Controller::queryFactors()
         queryObject<VelocityFactorNum>(),
         queryObject<VelocityFactorDen>(),
         queryObject<MotorRatedCurrent>(),
-        queryObject<MotorRatedTorque>()
     };
+}
+
+void Controller::setMotorParameters(MotorParameters const& parameters)
+{
+    if (parameters.encoderTicks)
+        setRaw<PositionEncoderResolutionNum>(parameters.encoderTicks);
+    if (parameters.encoderRevolutions)
+        setRaw<PositionEncoderResolutionDen>(parameters.encoderRevolutions);
+    if (parameters.gearMotorShaftRevolutions)
+        setRaw<GearRatioNum>(parameters.gearMotorShaftRevolutions);
+    if (parameters.gearDrivingShaftRevolutions)
+        setRaw<GearRatioDen>(parameters.gearDrivingShaftRevolutions);
+    if (parameters.feedLength)
+        setRaw<FeedConstantNum>(parameters.feedLength);
+    if (parameters.feedDrivingShaftRevolutions)
+        setRaw<FeedConstantDen>(parameters.feedDrivingShaftRevolutions);
+    if (!base::isUnknown(parameters.torqueConstant)) {
+        uint64_t current_mA = getRaw<MotorRatedCurrent>();
+        setRaw<MotorRatedTorque>(current_mA * parameters.torqueConstant);
+    }
+
+    try {
+        mFactors = computeFactors();
+    }
+    catch(canopen_master::ObjectNotRead) {}
 }
 
 Factors Controller::getFactors() const
@@ -82,6 +102,7 @@ Factors Controller::computeFactors() const
     factors.feedDrivingShaftRevolutions = getRaw<FeedConstantDen>();
     factors.ratedTorque  = static_cast<double>(getRaw<MotorRatedTorque>()) / 1000;
     factors.ratedCurrent = static_cast<double>(getRaw<MotorRatedCurrent>()) / 1000;
+    factors.update();
     return factors;
 }
 
@@ -164,6 +185,12 @@ Update Controller::process(canbus::Message const& msg)
 StatusWord Controller::getStatusWord() const
 {
     return get<StatusWord>();
+}
+
+template<typename T>
+void Controller::setRaw(typename T::OBJECT_TYPE value)
+{
+    return mCanOpen.set<typename T::OBJECT_TYPE>(T::OBJECT_ID, T::OBJECT_SUB_ID, value);
 }
 
 template<typename T>
