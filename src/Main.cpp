@@ -254,9 +254,6 @@ int main(int argc, char** argv)
     {
         queryObjects(*device, controller.queryFactors(),
             controller, UPDATE_FACTORS);
-        writeObject(*device,
-            controller.send(ControlWord(ControlWord::SHUTDOWN, true)),
-            controller);
         bool use_sync = true;
         vector<canbus::Message> pdoSetup;
         if (argc == 7) {
@@ -281,9 +278,6 @@ int main(int argc, char** argv)
         writeObjects(*device, pdoSetup, controller);
         device->write(controller.queryNodeStateTransition(
             canopen_master::NODE_START));
-        writeObject(*device,
-            controller.send(ControlWord(ControlWord::SWITCH_ON, true)),
-            controller);
         device->setReadTimeout(1500);
 
         canbus::Message sync = controller.querySync();
